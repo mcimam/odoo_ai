@@ -1,0 +1,11 @@
+# [TAG] module: short imperative header (<= ~50 chars)
+#
+# Why this change (rationale). Prefer WHY over WHAT.
+#
+# task-123
+# Fixes #123
+# Closes #123
+# opw-123
+#
+# Tags: FIX IMP ADD REM REF MOV REV PERF CLN LINT I18N MERGE REL CLA
+# Docs: https://www.odoo.com/documentation/20.0/contributing/development/git_guidelines.html

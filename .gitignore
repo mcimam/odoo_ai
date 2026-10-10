@@ -1,29 +1,68 @@
-# Python / Odoo
-.venv/
-venv/
+# Odoo custom addons path (.gitignore for module repos)
+
+# Python bytecode & packaging
 __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+.eggs/
+dist/
+build/
+*.egg
 
-# Secrets & local env
+# Virtual environments (if created under this path)
+.venv/
+venv/
+env/
+
+# Local secrets / env
 .env
 .env.*
 !.env.example
 *.pem
+*.key
 credentials.json
 service_account*.json
 
-# IDE / OS
+# Odoo runtime artifacts (should not live in an addons repo)
+filestore/
+sessions/
+*.log
+*.dump
+*.bak
+
+# Compiled translations (keep i18n/*.po and i18n/*.pot in git)
+*.mo
+
+# JS / frontend tooling (OWL / web assets)
+node_modules/
+.turbo/
+.cache/
+
+# Tests & linters
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.hypothesis/
+
+# IDE / editors
 .idea/
 *.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Local tooling
-*.log
+# Local agent / graph tooling
 .graphify/
 graphify-out/
+.cursor/
