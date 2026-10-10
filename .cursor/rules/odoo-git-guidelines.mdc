@@ -1,0 +1,75 @@
+---
+description: Odoo git commit message format and commit hygiene
+alwaysApply: true
+---
+
+# Odoo git guidelines (20.0)
+
+Follow https://www.odoo.com/documentation/20.0/contributing/development/git_guidelines.html
+
+When creating commits for Odoo modules, **override generic commit style** with this format.
+
+## Message structure
+
+```
+[TAG] module: short imperative header (<= ~50 chars)
+
+Why this change (rationale). Prefer WHY over WHAT.
+WHAT only if technical choices need explaining.
+
+task-123
+Fixes #123
+Closes #123
+opw-123
+```
+
+Header must read as a sentence after: `if applied, this commit will <header>`.
+
+## Tags (use exactly one)
+
+| Tag | Use |
+|-----|-----|
+| `[FIX]` | Bug fix |
+| `[IMP]` | Improvement / incremental feature work |
+| `[ADD]` | New module |
+| `[REM]` | Remove dead code / views / modules |
+| `[REF]` | Heavy rewrite / refactor |
+| `[MOV]` | Move files or code (use `git mv`; no content change in same commit) |
+| `[REV]` | Revert |
+| `[PERF]` | Performance |
+| `[CLN]` | Cleanup |
+| `[LINT]` | Linting |
+| `[I18N]` | Translations |
+| `[MERGE]` | Merge / forward-port umbrella |
+| `[REL]` | Release |
+| `[CLA]` | CLA |
+
+## Module name
+
+- Use **technical** module name after the tag (`ci_ai`, not a display label).
+- One module per commit when practical; if cross-cutting use `various` or list modules.
+- Do **not** mix unrelated modules in one commit (eases revert/history).
+
+## Examples
+
+```
+[IMP] ci_ai: support OpenAI-compatible gateway presets
+
+Allow DeepSeek/Groq/OpenRouter via allowlisted hosts so admins can BYO
+cheaper chat backends without a new adapter per vendor.
+```
+
+```
+[FIX] ci_ai: reject embeddings on chat-only gateways
+
+Closes #42
+```
+
+```
+[MOV] ci_ai: split openai gateways into openai_gateways.py
+```
+
+## Hygiene
+
+- Do not change git `user.name` / `user.email` unless the user explicitly asks.
+- Use `.gitmessage` in this repo as the template when committing locally.

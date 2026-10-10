@@ -65,4 +65,8 @@ desktop.ini
 # Local agent / graph tooling
 .graphify/
 graphify-out/
-.cursor/
+
+# Cursor: ignore local state, keep shared project rules
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**

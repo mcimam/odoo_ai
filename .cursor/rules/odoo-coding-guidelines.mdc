@@ -1,0 +1,51 @@
+---
+description: Odoo 20 coding guidelines for modules (structure, Python, XML, security)
+globs: "**/__manifest__.py,**/*.py,**/*.xml,**/*.js,**/*.scss"
+alwaysApply: false
+---
+
+# Odoo coding guidelines (20.0)
+
+Follow https://www.odoo.com/documentation/20.0/contributing/development/coding_guidelines.html
+
+## Scope
+
+- Apply fully on **new modules** and **new code**.
+- In **stable**: never restyle untouched code — keep diffs minimal; original file style wins.
+- In **master**: apply guidelines only to modified sections, or after a `[MOV]` when restructuring most of a file.
+- Community modules: prefix technical name with company/vendor (e.g. `ci_ai`).
+
+## Module layout
+
+```
+module_name/
+  __init__.py  __manifest__.py
+  models/  controllers/  views/  data/  security/  static/  tests/
+  wizard/  report/  populate/   # optional
+```
+
+- Filenames: only `[a-z0-9_]`. Folders `755`, files `644`.
+- Models: one main model set per file (`plant_order.py`); inherited models in their own file (`res_partner.py`).
+- Views: `<model>_views.xml`, `<model>_templates.xml`, optional `<module>_menus.xml`.
+- Controllers: `<module_name>.py` (not outdated `main.py`); inherit others in `<other_module>.py`.
+- Security: `ir.model.access.csv`, `<module>_groups.xml`, `<model>_security.xml`.
+- Static: assets under `static/src/{js,scss,xml}`; vendor under `static/lib/`; **no hotlinked remote images**.
+
+## XML
+
+- Prefer `<record>`; `id` before `model`; field `name` first.
+- XML ids: `<model>_view_<type>`, `<model>_action`, `<model>_menu`, `<module>_group_<name>`, `<model>_rule_<group>`.
+- Inherits: reuse original xml id; name uses `.inherit.<detail>` (except new `mode=primary` views).
+
+## Python
+
+- Import order (each group A–Z): stdlib → `odoo` → `odoo.addons.*` (rare).
+- Prefer readability; use ORM `filtered` / `mapped` / `sorted`; small extendable methods.
+- Propagate context via `with_context`; prefix custom context keys with module name.
+- **Never** `cr.commit()` / `cr.rollback()` unless you opened your own cursor (comment why). Prefer `savepoint()` for isolated try/except.
+- Catch **specific** exceptions only; avoid bare `except Exception`.
+- PEP8: Odoo commonly ignores E501 / E301 / E302.
+
+## When unsure
+
+Prefer the official doc over inventing style. Match neighboring Odoo/Enterprise code in the same area.
