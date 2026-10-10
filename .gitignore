@@ -67,6 +67,9 @@ desktop.ini
 graphify-out/
 
 # Cursor: ignore local state, keep shared project rules
-.cursor/*
+.cursor/
 !.cursor/rules/
 !.cursor/rules/**
+
+# Ignore vs code setting
+.vscode/
