@@ -27,28 +27,17 @@ def parts_to_text(parts: list[dict] | None) -> str:
     return '\n'.join(texts)
 
 
-def odoo_tools_to_prompt_block(tools: list[dict] | None) -> str:
-    if not tools:
-        return ''
-    lines = [
-        'You may call tools by replying with ONLY a JSON object of the form:',
-        '{"tool_calls":[{"name":"<tool>","call_id":"<id>","args":{...}}]}',
-        'or a normal text answer (no JSON wrapper) when no tool is needed.',
-        'Available tools:',
-    ]
-    for tool in tools:
-        lines.append(f"- {tool.get('name')}: {tool.get('instructions') or ''}")
-        if tool.get('schema'):
-            lines.append(f"  schema: {json.dumps(tool['schema'])}")
-    return '\n'.join(lines)
-
-
-def pack_messages_for_prompt(messages: list[dict], instructions: str, tools: list[dict] | None) -> str:
-    chunks = [instructions or '', odoo_tools_to_prompt_block(tools)]
-    for msg in messages or []:
-        role = msg.get('role', 'user')
-        chunks.append(f'[{role}]\n{parts_to_text(msg.get("content"))}')
-    return '\n\n'.join(c for c in chunks if c)
+def format_embedding_input(item: Any) -> str:
+    """Normalize RAG / embedding inputs (str or ``{title, content}``) to text."""
+    if isinstance(item, str):
+        return item
+    if not isinstance(item, dict):
+        return str(item or '')
+    title = (item.get('title') or '').strip()
+    content = (item.get('content') or '').strip()
+    if title and content:
+        return f'{title}\n\n{content}'
+    return content or title
 
 
 def parse_structured_assistant_content(text: str) -> dict:
@@ -90,17 +79,6 @@ def parse_structured_assistant_content(text: str) -> dict:
 
 def completion_response(assistant_message: dict) -> dict:
     return {'result': assistant_message}
-
-
-def schema_instruction(schema: dict | None) -> str:
-    """Prompt appendix for providers that cannot enforce JSON schema natively."""
-    if not schema:
-        return ''
-    return (
-        'Respond with ONLY a single JSON object that validates against this JSON Schema. '
-        'Do not wrap it in markdown fences or add commentary.\n'
-        f'{json.dumps(schema)}'
-    )
 
 
 def strip_json_fences(text: str) -> str:

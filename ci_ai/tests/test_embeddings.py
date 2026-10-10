@@ -3,7 +3,6 @@
 from unittest.mock import patch
 
 from odoo.tests import tagged
-from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 from odoo.addons.ci_ai.providers.google_provider import GoogleEmbeddingProvider
 from odoo.addons.ci_ai.providers.openai_provider import OpenAIEmbeddingProvider
@@ -11,6 +10,7 @@ from odoo.addons.ci_ai.providers.router import (
     get_embedding_provider,
     get_embedding_provider_name,
 )
+from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 
 @tagged('post_install', '-at_install')

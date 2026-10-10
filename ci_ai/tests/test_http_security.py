@@ -96,3 +96,23 @@ class TestCiAiHttpSecurity(CiAiTransactionCase):
         config = self.env['ci.ai.provider.config'].get_solo()
         with self.assertRaises(ValidationError):
             config.write({'google_base_url': 'https://evil.example.com'})
+
+    def test_validate_ollama_rejects_non_default_port(self):
+        with self.assertRaises(ValidationError):
+            validate_https_base_url(
+                'http://127.0.0.1:8080',
+                default_url='http://127.0.0.1:11434',
+                host_allowed=is_allowed_openai_host,
+                field_label='OpenAI Base URL',
+                allow_loopback=True,
+            )
+
+    def test_validate_ollama_port_11434_ok(self):
+        url = validate_https_base_url(
+            'http://127.0.0.1:11434',
+            default_url='http://127.0.0.1:11434',
+            host_allowed=is_allowed_openai_host,
+            field_label='OpenAI Base URL',
+            allow_loopback=True,
+        )
+        self.assertEqual(url, 'http://127.0.0.1:11434')

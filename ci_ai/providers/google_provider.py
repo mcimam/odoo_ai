@@ -5,16 +5,19 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from odoo.exceptions import UserError, ValidationError
 
-from .base import coerce_schema_text_parts, completion_response
+from .base import coerce_schema_text_parts, completion_response, format_embedding_input
 from .http_security import (
+    ProviderHttpError,
     build_api_url,
     decode_transcription_audio,
     http_json,
     is_allowed_google_host,
+    sanitize_mimetype,
     validate_https_base_url,
 )
 
@@ -47,23 +50,18 @@ def _google_headers(api_key: str) -> dict[str, str]:
     }
 
 
+_SAFE_MODEL_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$')
+
+
 def _model_path(model: str) -> str:
     model = (model or '').strip()
     if model.startswith('models/'):
-        return model
-    return f'models/{model}'
-
-
-def _format_embedding_input(item: Any) -> str:
-    if isinstance(item, str):
-        return item
-    if not isinstance(item, dict):
-        return str(item or '')
-    title = (item.get('title') or '').strip()
-    content = (item.get('content') or '').strip()
-    if title and content:
-        return f'{title}\n\n{content}'
-    return content or title
+        model_id = model[len('models/'):]
+    else:
+        model_id = model
+    if not model_id or not _SAFE_MODEL_ID.match(model_id) or '..' in model_id:
+        raise UserError('Google model id contains invalid characters.')
+    return f'models/{model_id}'
 
 
 def _odoo_tools_to_google(tools: list[dict] | None) -> list[dict]:
@@ -236,7 +234,7 @@ class GoogleEmbeddingProvider:
         if not self.api_key:
             raise UserError('Google API key is not configured.')
 
-        texts = [_format_embedding_input(item) for item in (inputs or [])]
+        texts = [format_embedding_input(item) for item in (inputs or [])]
         if not texts:
             return {'embeddings': []}
 
@@ -289,7 +287,14 @@ class GoogleEmbeddingProvider:
             response = http_json(
                 'Google', 'POST', url, _google_headers(self.api_key), body, timeout=180,
             )
-        except UserError:
+        except ProviderHttpError as err:
+            # Only fall back when the batch endpoint is missing/unavailable.
+            if err.status_code not in (404, 405, 501):
+                raise
+            _logger.info(
+                'Google batch embeddings unavailable (HTTP %s); falling back to singles',
+                err.status_code,
+            )
             return [self._single_embed(api_model, text) for text in texts]
 
         embeddings = response.get('embeddings') or []
@@ -324,11 +329,14 @@ class GoogleTranscriptionProvider:
     ) -> dict:
         if not self.api_key:
             raise UserError('Google API key is not configured.')
+        # Validate size/payload; Gemini still wants base64 in the JSON body.
         decode_transcription_audio(audio_base64)
 
         api_model = (model or self.model or DEFAULT_STT_MODEL).strip()
         fmt = (response_format or 'text').strip()
-        mime = (mimetype or 'audio/mp3').split(';')[0].strip() or 'audio/mp3'
+        mime = sanitize_mimetype(mimetype)
+        if mime == 'application/octet-stream':
+            mime = 'audio/mpeg'
         _logger.debug(
             'Google transcribe model=%s format=%s language=%s mimetype=%s payload_chars=%s',
             api_model, fmt, language, mime, len(audio_base64 or ''),

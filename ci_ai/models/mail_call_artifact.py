@@ -10,8 +10,8 @@ import logging
 from odoo import models
 from odoo.exceptions import UserError
 
-from odoo.addons.iap import InsufficientCreditError
 from odoo.addons.ci_ai.providers.router import get_stt_provider, get_stt_provider_name
+from odoo.addons.iap import InsufficientCreditError
 
 _logger = logging.getLogger(__name__)
 
@@ -62,5 +62,8 @@ class MailCallArtifact(models.Model):
                 return {'status': 'err'}
             return {'status': 'ok', 'transcript': text_vtt}
         except (InsufficientCreditError, UserError):
-            _logger.error('OpenAI transcription failed for call.artifact %s', self.id)
+            _logger.error(
+                'CI AI transcription failed provider=%s for call.artifact %s',
+                provider_name, self.id,
+            )
             return {'status': 'err'}

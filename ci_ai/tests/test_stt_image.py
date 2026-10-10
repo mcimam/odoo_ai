@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
-from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 from odoo.addons.ci_ai.providers.google_provider import (
     GoogleImageProvider,
@@ -21,6 +20,7 @@ from odoo.addons.ci_ai.providers.router import (
     get_stt_provider,
     get_stt_provider_name,
 )
+from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 
 @tagged('post_install', '-at_install')

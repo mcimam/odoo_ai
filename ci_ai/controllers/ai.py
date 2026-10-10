@@ -13,9 +13,9 @@ from odoo.exceptions import UserError
 from odoo.http import request
 
 from odoo.addons.ai.controllers import ai as ai_controller
-from odoo.addons.iap import InsufficientCreditError
 from odoo.addons.ci_ai.providers.http_security import decode_transcription_audio
 from odoo.addons.ci_ai.providers.router import get_stt_provider, get_stt_provider_name
+from odoo.addons.iap import InsufficientCreditError
 
 _logger = logging.getLogger(__name__)
 
@@ -104,10 +104,11 @@ class AIController(ai_controller.AIController):
 
     @http.route()
     def report_usage(self, iap_transaction_token, usage):
-        if get_stt_provider_name(request.env) in ('openai', 'google'):
+        provider_name = get_stt_provider_name(request.env)
+        if provider_name in ('openai', 'google'):
             _logger.debug(
                 'CI AI realtime STT usage ignored provider=%s token=%s',
-                get_stt_provider_name(request.env),
+                provider_name,
                 bool(iap_transaction_token),
             )
             return False

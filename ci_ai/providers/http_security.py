@@ -5,25 +5,51 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import ipaddress
 import json
 import logging
 import re
 import socket
-from typing import Callable
+from typing import Callable, NoReturn
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from odoo.exceptions import UserError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
 TRANSCRIPTION_MAX_BYTES = 25 * 1024 * 1024
+HTTP_ERROR_LOG_MAX = 512
+# Ollama default; keep loopback SSRF surface tiny for Settings admins.
+ALLOWED_LOOPBACK_PORTS = frozenset({11434})
 
 _SAFE_FORM_NAME = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
 _SAFE_FILENAME = re.compile(r'^[a-zA-Z0-9._-]{1,128}$')
 _MIMETYPE_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9+.-]*/[a-zA-Z0-9][a-zA-Z0-9+.-]*$')
+_SAFE_URL_PATH = re.compile(r'^(/[a-zA-Z0-9._-]+)+/?$')
+
+
+class ProviderHttpError(UserError):
+    """User-facing provider HTTP failure that still exposes the status code."""
+
+    def __init__(self, message, *, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Block redirects so allowlisted hosts cannot bounce off-allowlist."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: PLR0913
+        raise URLError(
+            'HTTP redirects are not allowed for CI AI provider requests '
+            f'(status {code} -> {newurl}).'
+        )
+
+
+_HTTP_OPENER = build_opener(_RejectRedirects)
 
 
 def is_allowed_openai_host(host: str) -> bool:
@@ -56,9 +82,6 @@ def is_allowed_google_host(host: str) -> bool:
     }
 
 
-_SAFE_URL_PATH = re.compile(r'^(/[a-zA-Z0-9._-]+)+/?$')
-
-
 def _is_public_ip(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)
@@ -72,6 +95,13 @@ def _is_public_ip(ip_str: str) -> bool:
         or ip.is_reserved
         or ip.is_unspecified
     )
+
+
+def _is_loopback_ip(ip_str: str) -> bool:
+    try:
+        return ipaddress.ip_address(ip_str).is_loopback
+    except ValueError:
+        return False
 
 
 def _hostname_resolves_to_public_ips(host: str) -> bool:
@@ -93,6 +123,27 @@ def _hostname_resolves_to_public_ips(host: str) -> bool:
     return True
 
 
+def _hostname_resolves_to_loopback(host: str) -> bool:
+    """Require every resolved address for a loopback hostname to be loopback."""
+    try:
+        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    except OSError:
+        return False
+    if not infos:
+        return False
+    saw_ip = False
+    for family, _type, _proto, _canon, sockaddr in infos:
+        if family not in (socket.AF_INET, socket.AF_INET6):
+            continue
+        addr = sockaddr[0]
+        if isinstance(addr, str) and addr.startswith('::ffff:'):
+            addr = addr.rsplit(':', 1)[-1]
+        saw_ip = True
+        if not _is_loopback_ip(addr):
+            return False
+    return saw_ip
+
+
 def validate_https_base_url(
     raw_url: str,
     *,
@@ -107,8 +158,9 @@ def validate_https_base_url(
     ``allow_path``: permit a simple path prefix (e.g. ``/openai``, ``/api``) for
     OpenAI-compatible gateways. The adapter still appends ``/v1/...``.
 
-    ``allow_loopback``: permit ``localhost`` / ``127.0.0.1`` and HTTP (Ollama).
-    Loopback hosts skip the public-DNS check.
+    ``allow_loopback``: permit ``localhost`` / ``127.0.0.1`` and HTTP (Ollama)
+    on :attr:`ALLOWED_LOOPBACK_PORTS` only. Loopback hosts skip the public-DNS
+    check but ``localhost`` must resolve to loopback addresses.
     """
     url = (raw_url or '').strip() or default_url
     parsed = urlparse(url)
@@ -152,7 +204,7 @@ def validate_https_base_url(
         # Allow 127.0.0.1 literal; reject other IPs even when allow_loopback.
         try:
             ip = ipaddress.ip_address(host_l)
-            if ip != ipaddress.ip_address('127.0.0.1'):
+            if not ip.is_loopback:
                 raise ValidationError(
                     '%s only allows localhost / 127.0.0.1 for local gateways.'
                     % field_label
@@ -162,6 +214,21 @@ def validate_https_base_url(
                 raise ValidationError(
                     '%s hostname is not allowed: %s' % (field_label, host)
                 ) from None
+            if not _hostname_resolves_to_loopback(host_l):
+                raise ValidationError(
+                    '%s hostname localhost must resolve to a loopback address.'
+                    % field_label
+                )
+        port = parsed.port
+        if port not in ALLOWED_LOOPBACK_PORTS:
+            raise ValidationError(
+                '%s local gateway must use port %s (got %s).'
+                % (
+                    field_label,
+                    ', '.join(str(p) for p in sorted(ALLOWED_LOOPBACK_PORTS)),
+                    port or 'default',
+                )
+            )
     else:
         try:
             ipaddress.ip_address(host)
@@ -179,8 +246,8 @@ def validate_https_base_url(
             raise ValidationError(
                 '%s hostname resolves to a non-public address: %s' % (field_label, host)
             )
+        port = parsed.port
 
-    port = parsed.port
     default_port = 80 if scheme == 'http' else 443
     if port and port != default_port:
         authority = f'{host_l}:{port}'
@@ -233,7 +300,7 @@ def decode_transcription_audio(audio_base64: str, *, max_bytes: int = TRANSCRIPT
         if padding:
             payload += '=' * padding
         audio_bytes = base64.b64decode(payload, validate=False)
-    except Exception as err:  # noqa: BLE001
+    except (binascii.Error, ValueError) as err:
         raise UserError('Invalid base64 audio payload for transcription.') from err
     if not audio_bytes:
         raise UserError('Empty audio payload for transcription.')
@@ -242,16 +309,27 @@ def decode_transcription_audio(audio_base64: str, *, max_bytes: int = TRANSCRIPT
     return audio_bytes
 
 
-def raise_sanitized_http_error(provider_label: str, err: Exception, method: str, url: str) -> None:
+def _truncate_for_log(text: str, *, limit: int = HTTP_ERROR_LOG_MAX) -> str:
+    cleaned = (text or '').replace('\r', ' ').replace('\n', ' ').strip()
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[:limit] + '…'
+
+
+def raise_sanitized_http_error(provider_label: str, err: Exception, method: str, url: str) -> NoReturn:
     if isinstance(err, HTTPError):
         detail = err.read().decode('utf-8', errors='replace')
-        _logger.error('%s HTTP %s %s: %s', provider_label, method, url, detail)
-        raise UserError(
+        _logger.error(
+            '%s HTTP %s %s: %s',
+            provider_label, method, url, _truncate_for_log(detail),
+        )
+        raise ProviderHttpError(
             '%s API request failed (HTTP %s). Please try again later.'
-            % (provider_label, err.code)
+            % (provider_label, err.code),
+            status_code=err.code,
         ) from err
     if isinstance(err, URLError):
-        _logger.error('%s network error %s %s: %s', provider_label, method, url, err)
+        _logger.error('%s network error %s %s: %s', provider_label, method, url, err.reason)
         raise UserError(
             '%s API is unreachable. Please try again later.' % provider_label
         ) from err
@@ -279,7 +357,7 @@ def http_json(
     data = None if body is None else json.dumps(body).encode('utf-8')
     req = Request(url, data=data, headers=headers, method=method)
     try:
-        with urlopen(req, timeout=timeout) as resp:
+        with _HTTP_OPENER.open(req, timeout=timeout) as resp:
             raw = resp.read().decode('utf-8')
             payload = json.loads(raw) if raw else {}
             _logger.debug(
@@ -338,7 +416,7 @@ def http_multipart_post(
     }
     req = Request(url, data=bytes(body), headers=req_headers, method='POST')
     try:
-        with urlopen(req, timeout=timeout) as resp:
+        with _HTTP_OPENER.open(req, timeout=timeout) as resp:
             raw = resp.read()
             _logger.debug(
                 'CI AI HTTP %s POST multipart %s -> ok bytes=%s',

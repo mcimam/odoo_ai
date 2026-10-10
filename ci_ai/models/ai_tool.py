@@ -39,8 +39,9 @@ class AiTool(models.AbstractModel):
 
         if images_paths:
             _logger.info(
-                'OpenAI image generation ignores %s reference image path(s); '
+                'CI AI image generation (%s) ignores %s reference image path(s); '
                 'prompt-only generation is used.',
+                provider_name,
                 len(images_paths),
             )
 

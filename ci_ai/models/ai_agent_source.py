@@ -25,6 +25,8 @@ class AiAgentSource(models.Model):
             agent = source.agent_id
             if agent and not agent.embedding_model:
                 agent._ci_ai_ensure_embedding_model()
+        # Repair orphan chunk rows that stock created with NULL embedding_model.
+        self._ci_ai_repair_null_embedding_models()
         return super()._trigger_embedding_generation()
 
     def _ci_ai_repair_null_embedding_models(self):

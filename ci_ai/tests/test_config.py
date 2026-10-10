@@ -3,6 +3,7 @@
 from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import tagged
+
 from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 

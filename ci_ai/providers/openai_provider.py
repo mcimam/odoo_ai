@@ -10,15 +10,22 @@ import logging
 import mimetypes
 import uuid
 from typing import Any
+
 from odoo.exceptions import UserError, ValidationError
 
-from .base import coerce_schema_text_parts, completion_response, parts_to_text
+from .base import (
+    coerce_schema_text_parts,
+    completion_response,
+    format_embedding_input,
+    parts_to_text,
+)
 from .http_security import (
     build_api_url,
     decode_transcription_audio,
     http_json,
     http_multipart_post,
     is_allowed_openai_host,
+    sanitize_mimetype,
     validate_https_base_url,
 )
 from .openai_gateways import (
@@ -160,7 +167,6 @@ def _openai_auth_headers(api_key: str, base_url: str) -> dict[str, str]:
 
 
 def _mimetype_to_extension(mimetype: str | None) -> str:
-    from .http_security import sanitize_mimetype
     mime = sanitize_mimetype(mimetype)
     if mime == 'application/octet-stream':
         mime = 'audio/mpeg'
@@ -297,18 +303,6 @@ def _openai_message_to_odoo(message: dict) -> dict:
     return {'role': 'assistant', 'content': parts, 'provider_metadata': {}}
 
 
-def _format_embedding_input(item: Any) -> str:
-    if isinstance(item, str):
-        return item
-    if not isinstance(item, dict):
-        return str(item or '')
-    title = (item.get('title') or '').strip()
-    content = (item.get('content') or '').strip()
-    if title and content:
-        return f'{title}\n\n{content}'
-    return content or title
-
-
 class OpenAIChatProvider:
     """Chat completions via OpenAI Chat Completions API (or compatible gateway)."""
 
@@ -407,7 +401,7 @@ class OpenAIEmbeddingProvider:
             raise UserError('OpenAI API key is not configured.')
         _require_gateway_capability(self.gateway, 'embedding', 'Embeddings / RAG')
 
-        texts = [_format_embedding_input(item) for item in (inputs or [])]
+        texts = [format_embedding_input(item) for item in (inputs or [])]
         if not texts:
             return {'embeddings': []}
 
@@ -576,7 +570,6 @@ class OpenAITranscriptionProvider:
         if language:
             fields['language'] = language
 
-        from .http_security import sanitize_mimetype
         filename = f'audio.{_mimetype_to_extension(mimetype)}'
         content_type = sanitize_mimetype(mimetype)
         boundary = f'----ciAiOpenAI{uuid.uuid4().hex}'

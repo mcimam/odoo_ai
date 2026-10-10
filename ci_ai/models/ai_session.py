@@ -67,18 +67,20 @@ class AiSession(models.Model):
             'kind': 'success',
             'message': response['result'],
         }
-        env = self.env(context={
-            **self.env.context,
-            'discuss_channel': self.channel_id,
-        })
-        session = self.with_env(env).sudo()
+        session = self.with_context(discuss_channel=self.channel_id).sudo()
         match callback_type:
             case 'agent_loop':
                 session._continue_agent_loop(completion_result)
             case 'channel_name':
                 session._continue_channel_name(completion_result)
             case _:
-                session._continue_agent_loop(completion_result)
+                _logger.error(
+                    'CI AI unknown callback_type=%s session=%s; failing exchange',
+                    callback_type, self.id,
+                )
+                raise UserError(self.env._(
+                    'Unknown AI session callback type: %s', callback_type,
+                ))
 
     def _ci_ai_rescue_session(self, callback_type, error_msg):
         self.ensure_one()
@@ -133,15 +135,20 @@ class AiSession(models.Model):
         # acknowledgement waiting_model after bus already delivered ready and
         # the UI stays stuck on "Thinking".
         try:
-            self._ci_ai_apply_completion(callback_type, completion_payload)
+            with self.env.cr.savepoint():
+                self._ci_ai_apply_completion(callback_type, completion_payload)
         except UserError as err:
             _logger.warning('CI AI provider user error for %s: %s', vals['request_uuid'], err)
             self._ci_ai_rescue_session(callback_type, str(err) or self.env._(
                 'Custom AI provider failed. Please try again later.'
             ))
-        except Exception:  # noqa: BLE001
-            _logger.exception('CI AI provider failed for request %s', vals['request_uuid'])
+        except (OSError, TimeoutError, ValueError, TypeError, KeyError) as err:
+            _logger.exception(
+                'CI AI provider failed for request %s: %s', vals['request_uuid'], err,
+            )
             self._ci_ai_rescue_session(
                 callback_type,
-                'Custom AI provider is currently unreachable. Please try again later.',
+                self.env._(
+                    'Custom AI provider is currently unreachable. Please try again later.'
+                ),
             )

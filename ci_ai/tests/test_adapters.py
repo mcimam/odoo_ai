@@ -3,13 +3,13 @@
 from unittest.mock import patch
 
 from odoo.tests import tagged
-from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 from odoo.addons.ci_ai.providers.anthropic_provider import AnthropicChatProvider
 from odoo.addons.ci_ai.providers.base import parse_structured_assistant_content
 from odoo.addons.ci_ai.providers.google_provider import GoogleChatProvider
 from odoo.addons.ci_ai.providers.openai_provider import OpenAIChatProvider
 from odoo.addons.ci_ai.providers.router import get_chat_provider, get_chat_provider_name
+from odoo.addons.ci_ai.tests.ci_ai_common import CiAiTransactionCase
 
 
 @tagged('post_install', '-at_install')

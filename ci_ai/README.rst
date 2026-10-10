@@ -63,7 +63,8 @@ System admins only.
 | **v1.7** | Google | Embeddings (1536) |
 | **v1.8** | Google | STT (batch) |
 | **v1.9** | Google | Image generation |
-| **v1.11** (current) | OpenAI-compatible | Multi-gateway (DeepSeek, Groq, OpenRouter, Azure, Ollama, custom) |
+| **v1.11** | OpenAI-compatible | Multi-gateway (DeepSeek, Groq, OpenRouter, Azure, Ollama, custom) |
+| **v1.11.1** (current) | — | Security + coding-guideline hardening |
 | **v1.12** (planned) | OpenCode Zen | First-class Zen API key + chat models |
 
 Details: [`.agent/docs/roadmap-ci-ai-openai-google.md`](../../../.agent/docs/roadmap-ci-ai-openai-google.md).

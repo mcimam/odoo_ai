@@ -30,10 +30,6 @@ CAPABILITY_PROVIDERS = [
     ('google', 'Google (Gemini)'),
 ]
 
-# Backward-compatible alias used by older imports/tests.
-OPENAI_CAPABILITY_PROVIDERS = CAPABILITY_PROVIDERS
-
-
 class CiAiProviderConfig(models.Model):
     _name = 'ci.ai.provider.config'
     _description = 'CI AI Provider Configuration'
@@ -189,56 +185,6 @@ class CiAiProviderConfig(models.Model):
         help='OpenAI Images API or Gemini image models for the generate_image tool.',
     )
 
-    @api.model
-    def get_solo(self):
-        """Return the singleton config row (create if missing)."""
-        config = self.sudo().search([], limit=1)
-        if not config:
-            config = self.sudo().create({'name': 'AI Providers'})
-        elif not config.name:
-            config.name = 'AI Providers'
-        return config
-
-    def _ci_ai_require_openai(self, capability_label):
-        self.ensure_one()
-        if not self.openai_enabled:
-            raise ValidationError(self.env._(
-                'Enable OpenAI before selecting it as the %s provider.',
-                capability_label,
-            ))
-        if not (self.openai_api_key or '').strip():
-            raise ValidationError(self.env._(
-                'OpenAI API key is required when %s provider is OpenAI.',
-                capability_label,
-            ))
-
-    def _ci_ai_require_google(self, capability_label):
-        self.ensure_one()
-        if not self.google_enabled:
-            raise ValidationError(self.env._(
-                'Enable Google before selecting it as the %s provider.',
-                capability_label,
-            ))
-        if not (self.google_api_key or '').strip():
-            raise ValidationError(self.env._(
-                'Google API key is required when %s provider is Google.',
-                capability_label,
-            ))
-
-    def _ci_ai_require_openai_capability(self, capability_key, capability_label):
-        self.ensure_one()
-        self._ci_ai_require_openai(capability_label)
-        if not gateway_supports(self.openai_gateway, capability_key):
-            raise ValidationError(self.env._(
-                'Gateway "%(gateway)s" does not support %(capability)s. '
-                'Use OpenAI or Azure for full capabilities, Ollama for chat + embeddings, '
-                'or route %(capability)s to Odoo AI (IAP) / Google.',
-                gateway=dict(OPENAI_GATEWAY_SELECTION).get(
-                    self.openai_gateway, self.openai_gateway,
-                ),
-                capability=capability_label,
-            ))
-
     @api.onchange('openai_gateway')
     def _onchange_openai_gateway(self):
         for rec in self:
@@ -344,3 +290,53 @@ class CiAiProviderConfig(models.Model):
                 raise ValidationError(self.env._(
                     'Google API key is required when Google is enabled.'
                 ))
+
+    @api.model
+    def get_solo(self):
+        """Return the singleton config row (create if missing)."""
+        config = self.sudo().search([], limit=1)
+        if not config:
+            config = self.sudo().create({'name': 'AI Providers'})
+        elif not config.name:
+            config.name = 'AI Providers'
+        return config
+
+    def _ci_ai_require_openai(self, capability_label):
+        self.ensure_one()
+        if not self.openai_enabled:
+            raise ValidationError(self.env._(
+                'Enable OpenAI before selecting it as the %s provider.',
+                capability_label,
+            ))
+        if not (self.openai_api_key or '').strip():
+            raise ValidationError(self.env._(
+                'OpenAI API key is required when %s provider is OpenAI.',
+                capability_label,
+            ))
+
+    def _ci_ai_require_google(self, capability_label):
+        self.ensure_one()
+        if not self.google_enabled:
+            raise ValidationError(self.env._(
+                'Enable Google before selecting it as the %s provider.',
+                capability_label,
+            ))
+        if not (self.google_api_key or '').strip():
+            raise ValidationError(self.env._(
+                'Google API key is required when %s provider is Google.',
+                capability_label,
+            ))
+
+    def _ci_ai_require_openai_capability(self, capability_key, capability_label):
+        self.ensure_one()
+        self._ci_ai_require_openai(capability_label)
+        if not gateway_supports(self.openai_gateway, capability_key):
+            raise ValidationError(self.env._(
+                'Gateway "%(gateway)s" does not support %(capability)s. '
+                'Use OpenAI or Azure for full capabilities, Ollama for chat + embeddings, '
+                'or route %(capability)s to Odoo AI (IAP) / Google.',
+                gateway=dict(OPENAI_GATEWAY_SELECTION).get(
+                    self.openai_gateway, self.openai_gateway,
+                ),
+                capability=capability_label,
+            ))
