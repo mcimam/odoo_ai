@@ -1,0 +1,64 @@
+{
+	"folders": [
+		{
+			"name": "modules",
+			"path": "./modules"
+		},
+		{
+			"path": "/home/mcimam/Project/odoo/odoo/odoo20"
+		},
+		{
+			"path": "/home/mcimam/Project/odoo/odoo-enterprise",
+		}
+	],
+	"settings": {
+		"python.defaultInterpreterPath": "${workspaceFolder:modules}/../.venv/bin/python",
+		"python.languageServer": "None",
+		"python.autoComplete.extraPaths": [
+			"/home/mcimam/Project/odoo/odoo/odoo20",
+			"/home/mcimam/Project/odoo/odoo-enterprise",
+			"./modules"
+		],
+		"python.analysis.extraPaths": [
+			"/home/mcimam/Project/odoo/odoo/odoo20",
+			"/home/mcimam/Project/odoo/odoo-enterprise",
+			"./modules",
+		],
+		"editor.defaultFormatter": "ms-python.autopep8",
+		"editor.formatOnSave": true,
+		"autopep8.args": [
+			"--ignore=E501,E301,E302"
+		],
+		"autoDocstring.docstringFormat": "pep257",
+		"[xml]": {
+			"editor.formatOnSave": false,
+			"editor.defaultFormatter": "DotJoshJohnson.xml"
+		},
+		"[json]": {
+			"editor.defaultFormatter": "vscode.json-language-features"
+		},
+		"python.analysis.typeCheckingMode": "standard",
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Python: Run odoo-bin",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "/home/mcimam/Project/odoo/odoo/odoo20/odoo-bin",
+				"python": "${workspaceFolder:modules}/../.venv/bin/python",
+				"args": [
+					// "shell",
+					"--addons-path",
+					"/home/mcimam/Project/odoo/odoo/odoo20/addons,/home/mcimam/Project/odoo/odoo-enterprise,/home/mcimam/Project/personal/odoo/modules/odoo_ai",
+					"-d", "odoo20",
+					"-u", "ci_ai",
+					"--log-level", "debug",
+		
+				],
+				"console": "integratedTerminal",
+			},
+		]
+	}
+}

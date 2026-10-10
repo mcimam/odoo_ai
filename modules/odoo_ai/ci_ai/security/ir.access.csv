@@ -1,0 +1,2 @@
+id,name,model_id,group_id/id,operation,domain
+access_ci_ai_provider_config_system,ci.ai.provider.config.system,ci.ai.provider.config,base.group_system,crud,

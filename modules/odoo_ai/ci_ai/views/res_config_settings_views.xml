@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_ci_ai" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.ci.ai</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="90"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="AI" string="AI" name="ci_ai"
+                     logo="/ci_ai/static/description/icon.png"
+                     groups="base.group_system">
+                    <block title="Capability routing" name="ci_ai_capability_routing">
+                        <setting string="Chat provider"
+                                 help="Which backend handles Discuss agent chat and sync completions. Odoo AI (IAP) is the stock Enterprise path.">
+                            <field name="ci_ai_chat_provider"/>
+                        </setting>
+                        <setting string="Embeddings / RAG"
+                                 help="OpenAI and Google use 1536-dimensional vectors. Switching providers may require re-embedding sources.">
+                            <field name="ci_ai_embedding_provider"/>
+                            <div class="text-warning mt8" invisible="ci_ai_embedding_provider != 'openai' and ci_ai_embedding_provider != 'google'">
+                                New agents default to the active provider embedding model. Existing agents that still use an IAP model name need their embedding model updated (or sources re-indexed) after switching.
+                            </div>
+                        </setting>
+                        <setting string="Speech-to-text"
+                                 help="OpenAI: Whisper batch + gpt-live-transcribe realtime. Google: Gemini multimodal batch only.">
+                            <field name="ci_ai_stt_provider"/>
+                            <div class="text-muted mt8" invisible="ci_ai_stt_provider != 'openai'">
+                                Batch uses the Whisper model below. Live voice uses the Realtime model (default gpt-live-transcribe).
+                            </div>
+                            <div class="text-warning mt8" invisible="ci_ai_stt_provider != 'google'">
+                                Google supports batch transcription only. Live browser STT still needs OpenAI or Odoo AI (IAP).
+                            </div>
+                        </setting>
+                        <setting string="Image generation"
+                                 help="OpenAI Images API or Gemini image models for the generate_image agent tool.">
+                            <field name="ci_ai_image_provider"/>
+                        </setting>
+                        <setting string="IAP credit note"
+                                 help="Shown when at least one capability still uses Odoo AI (IAP).">
+                            <div class="text-muted"
+                                 invisible="ci_ai_chat_provider != 'iap' and ci_ai_embedding_provider != 'iap' and ci_ai_stt_provider != 'iap' and ci_ai_image_provider != 'iap'">
+                                Capabilities still on Odoo AI (IAP) may consume Odoo AI credits.
+                            </div>
+                        </setting>
+                    </block>
+
+                    <block title="Providers" name="ci_ai_providers">
+                        <setting id="ci_ai_anthropic_setting"
+                                 string="Anthropic"
+                                 help="Use Anthropic Messages API for chat when selected above.">
+                            <field name="ci_ai_anthropic_enabled"/>
+                            <div class="content-group" invisible="not ci_ai_anthropic_enabled">
+                                <div class="row mt16">
+                                    <label for="ci_ai_anthropic_api_key" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_anthropic_api_key" password="True" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_anthropic_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_anthropic_model" placeholder="claude-sonnet-4-6" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_anthropic_base_url" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_anthropic_base_url" class="col-lg-6"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="ci_ai_openai_setting"
+                                 string="OpenAI / Compatible"
+                                 help="OpenAI or an OpenAI-compatible gateway (DeepSeek, Groq, OpenRouter, Azure, Ollama). Chat works on all presets; embeddings / STT / image need OpenAI or Azure (Ollama: chat + embeddings).">
+                            <field name="ci_ai_openai_enabled"/>
+                            <div class="content-group" invisible="not ci_ai_openai_enabled">
+                                <div class="row mt16">
+                                    <label for="ci_ai_openai_gateway" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_gateway" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_openai_api_key" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_api_key" password="True" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_openai_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_model" placeholder="gpt-4o" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_openai_embedding_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_embedding_model" placeholder="text-embedding-3-small" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_openai_stt_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_stt_model" placeholder="whisper-1" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_openai_realtime_stt_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_realtime_stt_model" placeholder="gpt-live-transcribe" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_openai_image_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_image_model" placeholder="dall-e-3" class="col-lg-6"/>
+                                </div>
+                                <div class="row"
+                                     invisible="ci_ai_openai_gateway not in ('azure', 'custom', 'ollama')">
+                                    <label for="ci_ai_openai_base_url" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_openai_base_url" class="col-lg-6"
+                                             placeholder="https://….openai.azure.com"/>
+                                </div>
+                                <div class="text-muted mt8"
+                                     invisible="ci_ai_openai_gateway in ('openai', 'azure')">
+                                    This gateway supports Chat (and embeddings for Ollama). Keep Embeddings / STT / Image on Odoo AI (IAP), Google, or switch gateway to OpenAI / Azure.
+                                </div>
+                            </div>
+                        </setting>
+                        <setting id="ci_ai_google_setting"
+                                 string="Google (Gemini)"
+                                 help="Use Google Gemini (AI Studio API key) for chat, embeddings, batch STT, and image generation when selected above.">
+                            <field name="ci_ai_google_enabled"/>
+                            <div class="content-group" invisible="not ci_ai_google_enabled">
+                                <div class="row mt16">
+                                    <label for="ci_ai_google_api_key" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_google_api_key" password="True" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_google_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_google_model" placeholder="gemini-2.5-flash" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_google_embedding_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_google_embedding_model" placeholder="gemini-embedding-001" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_google_stt_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_google_stt_model" placeholder="gemini-2.5-flash" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_google_image_model" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_google_image_model" placeholder="gemini-2.5-flash-image" class="col-lg-6"/>
+                                </div>
+                                <div class="row">
+                                    <label for="ci_ai_google_base_url" class="col-lg-5 o_light_label"/>
+                                    <field name="ci_ai_google_base_url" class="col-lg-6"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

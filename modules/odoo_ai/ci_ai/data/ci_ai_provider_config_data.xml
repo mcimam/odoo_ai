@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ci_ai_provider_config_solo" model="ci.ai.provider.config">
+        <field name="name">AI Providers</field>
+        <field name="chat_provider">iap</field>
+        <field name="embedding_provider">iap</field>
+        <field name="stt_provider">iap</field>
+        <field name="image_provider">iap</field>
+        <field name="anthropic_enabled" eval="False"/>
+        <field name="openai_enabled" eval="False"/>
+        <field name="google_enabled" eval="False"/>
+        <field name="anthropic_model">claude-sonnet-4-6</field>
+        <field name="anthropic_base_url">https://api.anthropic.com</field>
+        <field name="openai_gateway">openai</field>
+        <field name="openai_model">gpt-4o</field>
+        <field name="openai_embedding_model">text-embedding-3-small</field>
+        <field name="openai_stt_model">whisper-1</field>
+        <field name="openai_realtime_stt_model">gpt-live-transcribe</field>
+        <field name="openai_image_model">dall-e-3</field>
+        <field name="openai_base_url">https://api.openai.com</field>
+        <field name="google_model">gemini-2.5-flash</field>
+        <field name="google_embedding_model">gemini-embedding-001</field>
+        <field name="google_stt_model">gemini-2.5-flash</field>
+        <field name="google_image_model">gemini-2.5-flash-image</field>
+        <field name="google_base_url">https://generativelanguage.googleapis.com</field>
+    </record>
+</odoo>
