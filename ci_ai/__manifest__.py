@@ -2,13 +2,18 @@
 {
     'name': 'CI AI Providers',
     'category': 'Productivity',
-    'version': '20.0.1.11.1',
-    'summary': 'Route Odoo AI capabilities to Odoo IAP, Anthropic, OpenAI-compatible, or Google',
+    'version': '20.0.1.12.0',
+    'summary': 'Route Odoo AI to IAP, Anthropic, OpenAI-compatible gateways, or Google',
     'description': """
 Configure per-capability AI providers under Settings > AI.
-v1.11: OpenAI-compatible gateways (DeepSeek, Groq, OpenRouter, Azure, Ollama, custom).
-v1.11.1: Security/guideline hardening (SSRF redirects, exceptions, XML id).
-Chat: IAP, Anthropic, OpenAI/compatible, Google. Embeddings / STT / image: IAP, OpenAI/Azure, Google (Ollama embeddings).
+
+Chat: Odoo AI (IAP), Anthropic, OpenAI / Compatible, Google Gemini.
+Embeddings / RAG: IAP, OpenAI, Azure, OpenRouter, Ollama, Google (1536-dim).
+Speech-to-text: IAP, OpenAI / Azure (batch + realtime), OpenRouter (batch), Google (batch).
+Image generation: IAP, OpenAI / Azure, OpenRouter, Google.
+
+OpenAI-compatible gateways: OpenAI, DeepSeek, Groq, OpenRouter, Azure, Ollama, custom.
+v1.12: OpenRouter embeddings, batch STT, and image generation (no realtime STT).
     """,
     'depends': ['ai_agentic', 'base_setup'],
     'data': [

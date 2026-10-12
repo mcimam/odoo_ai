@@ -1,9 +1,10 @@
 # Part of ci_ai.
 
-"""OpenAI-compatible gateway presets (v1.11).
+"""OpenAI-compatible gateway presets (v1.12).
 
-Chat Completions hosts share the OpenAI adapter. Embeddings / STT / image stay
-limited to first-party OpenAI and Azure unless a later release widens support.
+Chat Completions hosts share the OpenAI adapter. OpenAI, Azure, and OpenRouter
+support embeddings / batch STT / image; Ollama adds embeddings only. DeepSeek,
+Groq, and custom remain chat-only. OpenRouter has no realtime STT.
 """
 
 from __future__ import annotations
@@ -59,7 +60,8 @@ OPENAI_GATEWAY_PRESETS: dict[str, dict[str, Any]] = {
     'openrouter': {
         'base_url': 'https://openrouter.ai/api',
         'default_chat_model': 'openai/gpt-4o-mini',
-        'capabilities': _CHAT_ONLY,
+        # Batch embeddings / STT / image via OpenRouter modality APIs; no realtime STT.
+        'capabilities': _FULL,
         'allow_path': True,
         'allow_loopback': False,
     },

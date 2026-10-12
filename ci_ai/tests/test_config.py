@@ -182,6 +182,23 @@ class TestCiAiProviderConfig(CiAiTransactionCase):
         self.assertEqual(config.openai_gateway, 'deepseek')
         self.assertEqual(config.chat_provider, 'openai')
 
+    def test_openrouter_gateway_allows_openai_capabilities(self):
+        config = self.env['ci.ai.provider.config'].get_solo()
+        config.write({
+            'openai_enabled': True,
+            'openai_api_key': 'sk-or',
+            'openai_gateway': 'openrouter',
+            'openai_model': 'openai/gpt-4o-mini',
+            'chat_provider': 'openai',
+            'embedding_provider': 'openai',
+            'stt_provider': 'openai',
+            'image_provider': 'openai',
+        })
+        self.assertEqual(config.openai_gateway, 'openrouter')
+        self.assertEqual(config.embedding_provider, 'openai')
+        self.assertEqual(config.stt_provider, 'openai')
+        self.assertEqual(config.image_provider, 'openai')
+
     def test_settings_google_fields(self):
         settings = self.env['res.config.settings'].create({
             'ci_ai_google_enabled': True,

@@ -23,6 +23,7 @@ class TestCiAiEmbeddings(CiAiTransactionCase):
             'embedding_provider': 'iap',
             'openai_enabled': False,
             'openai_api_key': False,
+            'openai_gateway': 'openai',
             'openai_embedding_model': 'text-embedding-3-small',
             'google_enabled': False,
             'google_api_key': False,
@@ -211,3 +212,41 @@ class TestCiAiEmbeddings(CiAiTransactionCase):
         )
         supported = self.env['ai.embedding']._get_supported_embedding_models()
         self.assertIn('gemini-embedding-001', supported)
+
+    def test_openrouter_embed_prefixes_model_and_dimensions(self):
+        provider = OpenAIEmbeddingProvider(
+            api_key='sk-or',
+            model='text-embedding-3-small',
+            gateway='openrouter',
+            base_url='https://openrouter.ai/api',
+        )
+        vector = [0.02] * 1536
+
+        def fake_http(provider_label, method, url, headers, body=None, timeout=120):
+            self.assertEqual(url, 'https://openrouter.ai/api/v1/embeddings')
+            self.assertEqual(body['model'], 'openai/text-embedding-3-small')
+            self.assertEqual(body['dimensions'], 1536)
+            self.assertEqual(headers.get('HTTP-Referer'), 'https://www.odoo.com')
+            return {'data': [{'index': 0, 'embedding': vector}]}
+
+        with patch(
+            'odoo.addons.ci_ai.providers.openai_provider.http_json',
+            side_effect=fake_http,
+        ):
+            result = provider.embed(inputs=['hello'], model='text-embedding-3-small')
+        self.assertEqual(len(result['embeddings'][0]), 1536)
+
+    def test_router_openrouter_embedding(self):
+        config = self.env['ci.ai.provider.config'].get_solo()
+        config.write({
+            'embedding_provider': 'openai',
+            'openai_enabled': True,
+            'openai_api_key': 'sk-or',
+            'openai_gateway': 'openrouter',
+            'openai_embedding_model': 'text-embedding-3-small',
+        })
+        provider = get_embedding_provider(self.env)
+        self.assertIsInstance(provider, OpenAIEmbeddingProvider)
+        self.assertEqual(provider.gateway, 'openrouter')
+        self.assertEqual(provider.base_url, 'https://openrouter.ai/api')
+

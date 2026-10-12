@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import json
 import logging
@@ -147,10 +148,28 @@ def _require_gateway_capability(gateway: str | None, capability: str, label: str
         return
     raise UserError(
         'The selected OpenAI-compatible gateway does not support %s. '
-        'Route %s to Odoo AI (IAP), Google, or first-party OpenAI / Azure, '
+        'Route %s to Odoo AI (IAP), Google, or OpenAI / Azure / OpenRouter, '
         'or switch the OpenAI gateway preset.'
         % (label, label)
     )
+
+
+def _is_openrouter(gateway: str | None) -> bool:
+    return (gateway or '') == 'openrouter'
+
+
+def _openrouter_model(model: str | None) -> str:
+    """Prefix bare OpenAI model ids with ``openai/`` for OpenRouter slugs."""
+    api_model = (model or '').strip()
+    if not api_model or '/' in api_model:
+        return api_model
+    return f'openai/{api_model}'
+
+
+def _embedding_model_supports_dimensions(model: str | None) -> bool:
+    """True for text-embedding-3-* (bare or ``openai/``-prefixed)."""
+    bare = (model or '').strip().rsplit('/', 1)[-1]
+    return bare.startswith('text-embedding-3')
 
 
 def _openai_auth_headers(api_key: str, base_url: str) -> dict[str, str]:
@@ -164,6 +183,38 @@ def _openai_auth_headers(api_key: str, base_url: str) -> dict[str, str]:
         headers.setdefault('HTTP-Referer', 'https://www.odoo.com')
         headers.setdefault('X-Title', 'Odoo CI AI')
     return headers
+
+
+def _format_seconds_as_vtt(seconds: float | int | None) -> str:
+    """Format a timestamp as ``HH:MM:SS.mmm`` for WebVTT cues."""
+    total_ms = max(0, int(round(float(seconds or 0) * 1000)))
+    hours, rem = divmod(total_ms, 3_600_000)
+    minutes, rem = divmod(rem, 60_000)
+    secs, millis = divmod(rem, 1000)
+    return f'{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}'
+
+
+def _verbose_json_to_webvtt(payload: dict[str, Any]) -> str:
+    """Build a minimal WebVTT document from OpenRouter verbose_json STT."""
+    segments = payload.get('segments') or []
+    lines = ['WEBVTT', '']
+    if segments:
+        for index, segment in enumerate(segments, start=1):
+            start = _format_seconds_as_vtt(segment.get('start'))
+            end = _format_seconds_as_vtt(segment.get('end'))
+            text = (segment.get('text') or '').strip()
+            if not text:
+                continue
+            lines.append(str(index))
+            lines.append(f'{start} --> {end}')
+            lines.append(text)
+            lines.append('')
+        return '\n'.join(lines).rstrip() + '\n'
+    text = (payload.get('text') or '').strip()
+    if not text:
+        return 'WEBVTT\n'
+    lines.extend(['1', '00:00:00.000 --> 00:00:01.000', text, ''])
+    return '\n'.join(lines)
 
 
 def _mimetype_to_extension(mimetype: str | None) -> str:
@@ -406,6 +457,8 @@ class OpenAIEmbeddingProvider:
             return {'embeddings': []}
 
         api_model = (model or self.model or DEFAULT_EMBEDDING_MODEL).strip()
+        if _is_openrouter(self.gateway):
+            api_model = _openrouter_model(api_model)
         _logger.debug(
             'OpenAI embed gateway=%s model=%s inputs=%s dimensions=%s base_url=%s',
             self.gateway, api_model, len(texts), self.dimensions, self.base_url,
@@ -415,7 +468,7 @@ class OpenAIEmbeddingProvider:
             'input': texts,
         }
         # text-embedding-3-* supports dimensions; ada-002 is already 1536.
-        if api_model.startswith('text-embedding-3'):
+        if _embedding_model_supports_dimensions(api_model):
             body['dimensions'] = int(self.dimensions)
 
         headers = _openai_auth_headers(self.api_key, self.base_url)
@@ -494,6 +547,11 @@ class OpenAITranscriptionProvider:
         if not self.api_key:
             raise UserError('OpenAI API key is not configured.')
         _require_gateway_capability(self.gateway, 'stt', 'Speech-to-text')
+        if _is_openrouter(self.gateway):
+            raise UserError(
+                'OpenRouter speech-to-text supports batch transcription only. '
+                'Use OpenAI, Azure, or Odoo AI (IAP) for live browser STT.'
+            )
 
         api_model = (model or self.realtime_model or DEFAULT_REALTIME_STT_MODEL).strip()
         transcription = _realtime_transcription_config(
@@ -559,6 +617,16 @@ class OpenAITranscriptionProvider:
 
         api_model = (model or self.model or DEFAULT_STT_MODEL).strip()
         fmt = (response_format or 'text').strip()
+        if _is_openrouter(self.gateway):
+            return self._transcribe_openrouter(
+                audio_base64,
+                audio_bytes=audio_bytes,
+                mimetype=mimetype,
+                language=language,
+                response_format=fmt,
+                model=api_model,
+            )
+
         _logger.debug(
             'OpenAI transcribe gateway=%s model=%s format=%s language=%s bytes=%s mimetype=%s',
             self.gateway, api_model, fmt, language, len(audio_bytes), mimetype,
@@ -589,6 +657,52 @@ class OpenAITranscriptionProvider:
         else:
             text = raw.decode('utf-8') if raw else ''
         return {'text': text}
+
+    def _transcribe_openrouter(
+        self,
+        audio_base64: str,
+        *,
+        audio_bytes: bytes,
+        mimetype: str,
+        language: str | None,
+        response_format: str,
+        model: str,
+    ) -> dict:
+        """Batch STT via OpenRouter JSON ``input_audio`` (no text/vtt/srt)."""
+        del audio_base64  # validated via audio_bytes; re-encode cleanly for OpenRouter
+        api_model = _openrouter_model(model or DEFAULT_STT_MODEL)
+        want_vtt = response_format == 'vtt'
+        # OpenRouter rejects text/srt/vtt; coerce to supported JSON shapes.
+        if want_vtt or response_format in ('srt',):
+            api_format = 'verbose_json'
+        elif response_format in ('json', 'verbose_json'):
+            api_format = response_format
+        else:
+            api_format = 'json'
+
+        clean_b64 = base64.b64encode(audio_bytes).decode('ascii')
+        audio_format = _mimetype_to_extension(mimetype)
+        body: dict[str, Any] = {
+            'model': api_model,
+            'input_audio': {
+                'data': clean_b64,
+                'format': audio_format,
+            },
+            'response_format': api_format,
+        }
+        if language:
+            body['language'] = language
+
+        _logger.debug(
+            'OpenRouter transcribe model=%s format=%s->%s language=%s mimetype=%s payload_chars=%s',
+            api_model, response_format, api_format, language, mimetype, len(clean_b64),
+        )
+        headers = _openai_auth_headers(self.api_key, self.base_url)
+        url = build_api_url(self.base_url, '/v1/audio/transcriptions')
+        payload = http_json('OpenAI', 'POST', url, headers, body, timeout=180) or {}
+        if want_vtt:
+            return {'text': _verbose_json_to_webvtt(payload)}
+        return {'text': payload.get('text') or ''}
 
 
 class OpenAIImageProvider:
@@ -624,6 +738,14 @@ class OpenAIImageProvider:
             raise UserError('Image prompt is required.')
 
         api_model = (model or self.model or DEFAULT_IMAGE_MODEL).strip()
+        if _is_openrouter(self.gateway):
+            return self._generate_openrouter(
+                prompt.strip(),
+                aspect_ratio=aspect_ratio,
+                model=api_model,
+                n=n,
+            )
+
         size = _aspect_ratio_to_size(aspect_ratio, api_model)
         _logger.debug(
             'OpenAI image generate gateway=%s model=%s size=%s n=%s prompt_len=%s',
@@ -642,8 +764,39 @@ class OpenAIImageProvider:
         headers = _openai_auth_headers(self.api_key, self.base_url)
         url = build_api_url(self.base_url, '/v1/images/generations')
         response = http_json('OpenAI', 'POST', url, headers, body, timeout=180)
+        return self._image_response_parts(response)
+
+    def _generate_openrouter(
+        self,
+        prompt: str,
+        *,
+        aspect_ratio: str,
+        model: str,
+        n: int,
+    ) -> list[dict]:
+        """Image generation via OpenRouter ``POST /v1/images``."""
+        api_model = _openrouter_model(model or DEFAULT_IMAGE_MODEL)
+        ratio = (aspect_ratio or '1:1').strip() or '1:1'
+        body: dict[str, Any] = {
+            'model': api_model,
+            'prompt': prompt,
+            'n': max(1, min(int(n or 1), 4)),
+            'aspect_ratio': ratio,
+            'output_format': 'png',
+        }
+        _logger.debug(
+            'OpenRouter image generate model=%s aspect_ratio=%s n=%s prompt_len=%s',
+            api_model, ratio, body['n'], len(prompt),
+        )
+        headers = _openai_auth_headers(self.api_key, self.base_url)
+        url = build_api_url(self.base_url, '/v1/images')
+        response = http_json('OpenAI', 'POST', url, headers, body, timeout=180)
+        return self._image_response_parts(response)
+
+    @staticmethod
+    def _image_response_parts(response: dict[str, Any] | None) -> list[dict]:
         parts: list[dict] = []
-        for row in response.get('data') or []:
+        for row in (response or {}).get('data') or []:
             b64 = row.get('b64_json')
             if not b64 and row.get('url'):
                 raise UserError(
@@ -655,7 +808,7 @@ class OpenAIImageProvider:
             parts.append({
                 'type': 'inline_data',
                 'data': b64,
-                'mimetype': 'image/png',
+                'mimetype': row.get('media_type') or 'image/png',
             })
         if not parts:
             raise UserError('OpenAI Images API returned no image data.')

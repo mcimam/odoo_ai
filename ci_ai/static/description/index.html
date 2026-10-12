@@ -71,7 +71,7 @@
                     </div>
                     <h3 style="color:#1a1523; font-size:18px; font-weight:700; margin-bottom:10px">Embeddings / RAG</h3>
                     <p style="color:#5a5260; font-size:14px; line-height:1.5; margin-bottom:0">
-                        IAP, OpenAI / Azure / Ollama, or Google &mdash; 1536-dim vectors for Odoo RAG.
+                        IAP, OpenAI / Azure / OpenRouter / Ollama, or Google &mdash; 1536-dim vectors for Odoo RAG.
                     </p>
                 </div>
             </div>
@@ -82,7 +82,7 @@
                     </div>
                     <h3 style="color:#1a1523; font-size:18px; font-weight:700; margin-bottom:10px">Speech-to-text</h3>
                     <p style="color:#5a5260; font-size:14px; line-height:1.5; margin-bottom:0">
-                        Whisper batch + realtime live STT (OpenAI), or Gemini multimodal batch (Google).
+                        OpenAI / Azure: Whisper batch + realtime. OpenRouter or Google: batch transcription only.
                     </p>
                 </div>
             </div>
@@ -93,7 +93,7 @@
                     </div>
                     <h3 style="color:#1a1523; font-size:18px; font-weight:700; margin-bottom:10px">Image generation</h3>
                     <p style="color:#5a5260; font-size:14px; line-height:1.5; margin-bottom:0">
-                        OpenAI Images or Gemini image models for the generate_image agent tool.
+                        OpenAI / Azure / OpenRouter Images or Gemini image models for the generate_image tool.
                     </p>
                 </div>
             </div>
@@ -179,11 +179,11 @@
                     OpenAI-compatible gateways
                 </p>
                 <h2 style="color:#1a1523; font-size:30px; font-weight:700; margin-bottom:12px">
-                    Cheaper chat backends, same adapter
+                    One adapter, many gateways
                 </h2>
                 <p style="color:#5a5260; font-size:16px; line-height:1.6; margin-bottom:0">
-                    Pick a preset under OpenAI / Compatible. Chat works on all presets; embeddings, STT, and image
-                    need OpenAI or Azure (Ollama: chat + embeddings).
+                    Pick a preset under OpenAI / Compatible. Chat works on all presets; embeddings, batch STT, and
+                    image work on OpenAI, Azure, and OpenRouter (Ollama: chat + embeddings).
                 </p>
             </div>
         </div>
@@ -217,7 +217,7 @@
             <div class="col-6 col-md-4 col-lg-3 mb-3">
                 <div class="text-center" style="background-color:#f7f2fa; border-radius:12px; padding:18px 10px; border:1px solid #e8dcec">
                     <div style="color:#714B67; font-weight:700; font-size:15px">OpenRouter</div>
-                    <div style="color:#5a5260; font-size:12px; margin-top:4px">Chat</div>
+                    <div style="color:#5a5260; font-size:12px; margin-top:4px">Chat &middot; Embed &middot; STT* &middot; Image</div>
                 </div>
             </div>
             <div class="col-6 col-md-4 col-lg-3 mb-3">
@@ -242,8 +242,8 @@
         <div class="row justify-content-center mt-2">
             <div class="col-lg-10 col-12">
                 <p style="color:#7a7080; font-size:13px; line-height:1.5; margin-bottom:0; text-align:center">
-                    * Ollama embeddings must be 1536-dimensional. Azure needs OpenAI-compatible <code>/v1</code> paths
-                    (classic deployment URLs are not rewritten yet).
+                    * OpenRouter STT is batch only (no live browser realtime). Ollama embeddings must be 1536-dimensional.
+                    Azure needs OpenAI-compatible <code>/v1</code> paths (classic deployment URLs are not rewritten yet).
                 </p>
             </div>
         </div>
@@ -328,7 +328,7 @@
                 </h2>
                 <div style="background-color:#fff8f0; border:1px solid #f0d9c0; border-radius:12px; padding:22px 26px">
                     <ul style="color:#5a5260; font-size:14px; line-height:1.75; margin-bottom:0; padding-left:18px">
-                        <li>Google speech-to-text is <strong>batch only</strong>; live browser STT needs OpenAI or IAP.</li>
+                        <li>OpenRouter and Google speech-to-text are <strong>batch only</strong>; live browser STT needs OpenAI, Azure, or IAP.</li>
                         <li>Google auth uses AI Studio API keys (Vertex service accounts not yet).</li>
                         <li>Requires Odoo Enterprise AI modules (<code>ai_agentic</code> and related apps).</li>
                         <li>Configuration is limited to the Settings / system administrator group.</li>

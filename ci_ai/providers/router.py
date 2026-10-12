@@ -46,7 +46,7 @@ def _assert_openai_capability(env, config, capability: str, label: str) -> None:
         return
     raise UserError(env._(
         'The selected OpenAI-compatible gateway does not support %(capability)s. '
-        'Route %(capability)s to Odoo AI (IAP), Google, or first-party OpenAI / Azure, '
+        'Route %(capability)s to Odoo AI (IAP), Google, or OpenAI / Azure / OpenRouter, '
         'or change the OpenAI gateway preset.',
         capability=label,
     ))

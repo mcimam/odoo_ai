@@ -14,7 +14,11 @@ from odoo.http import request
 
 from odoo.addons.ai.controllers import ai as ai_controller
 from odoo.addons.ci_ai.providers.http_security import decode_transcription_audio
-from odoo.addons.ci_ai.providers.router import get_stt_provider, get_stt_provider_name
+from odoo.addons.ci_ai.providers.router import (
+    get_config,
+    get_stt_provider,
+    get_stt_provider_name,
+)
 from odoo.addons.iap import InsufficientCreditError
 
 _logger = logging.getLogger(__name__)
@@ -75,6 +79,19 @@ class AIController(ai_controller.AIController):
         if provider_name != 'openai':
             _logger.debug('CI AI realtime STT call provider=iap language=%s', language)
             return super().get_session_token(language, prompt)
+
+        gateway = getattr(get_config(request.env), 'openai_gateway', None) or 'openai'
+        if gateway == 'openrouter':
+            _logger.debug(
+                'CI AI realtime STT blocked gateway=openrouter language=%s', language,
+            )
+            return {
+                'status': 'error',
+                'message': (
+                    'OpenRouter speech-to-text supports batch transcription only. '
+                    'Use OpenAI, Azure, or Odoo AI (IAP) for live browser STT.'
+                ),
+            }
 
         provider = get_stt_provider(request.env)
         _logger.debug(

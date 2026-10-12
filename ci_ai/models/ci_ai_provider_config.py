@@ -63,8 +63,9 @@ class CiAiProviderConfig(models.Model):
         required=True,
         groups='base.group_system',
         help='OpenAI-compatible endpoint. Named presets fix the host; Azure / Custom / '
-             'Ollama use Base URL. Chat works on all presets; embeddings / STT / image '
-             'require OpenAI, Azure, or (embeddings only) Ollama.',
+             'Ollama use Base URL. Chat works on all presets; embeddings / batch STT / '
+             'image require OpenAI, Azure, or OpenRouter (Ollama: chat + embeddings). '
+             'OpenRouter has no realtime browser STT.',
     )
     anthropic_base_url = fields.Char(
         string='Anthropic Base URL',
@@ -173,7 +174,8 @@ class CiAiProviderConfig(models.Model):
         default='iap',
         required=True,
         groups='base.group_system',
-        help='OpenAI: Whisper batch + gpt-live-transcribe realtime. '
+        help='OpenAI/Azure: Whisper batch + gpt-live-transcribe realtime. '
+             'OpenRouter: batch Whisper only (no realtime). '
              'Google: Gemini multimodal batch STT (no realtime yet).',
     )
     image_provider = fields.Selection(
@@ -333,8 +335,9 @@ class CiAiProviderConfig(models.Model):
         if not gateway_supports(self.openai_gateway, capability_key):
             raise ValidationError(self.env._(
                 'Gateway "%(gateway)s" does not support %(capability)s. '
-                'Use OpenAI or Azure for full capabilities, Ollama for chat + embeddings, '
-                'or route %(capability)s to Odoo AI (IAP) / Google.',
+                'Use OpenAI, Azure, or OpenRouter for full batch capabilities, '
+                'Ollama for chat + embeddings, or route %(capability)s to '
+                'Odoo AI (IAP) / Google.',
                 gateway=dict(OPENAI_GATEWAY_SELECTION).get(
                     self.openai_gateway, self.openai_gateway,
                 ),

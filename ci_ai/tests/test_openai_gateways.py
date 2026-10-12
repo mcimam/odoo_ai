@@ -51,6 +51,10 @@ class TestCiAiOpenAIGateways(CiAiTransactionCase):
         self.assertFalse(gateway_supports('deepseek', 'embedding'))
         self.assertTrue(gateway_supports('ollama', 'embedding'))
         self.assertFalse(gateway_supports('ollama', 'stt'))
+        self.assertTrue(gateway_supports('openrouter', 'chat'))
+        self.assertTrue(gateway_supports('openrouter', 'embedding'))
+        self.assertTrue(gateway_supports('openrouter', 'stt'))
+        self.assertTrue(gateway_supports('openrouter', 'image'))
 
     def test_resolve_named_preset_ignores_stale_base_url(self):
         url = resolve_gateway_base_url('deepseek', 'https://api.openai.com')
@@ -206,3 +210,56 @@ class TestCiAiOpenAIGateways(CiAiTransactionCase):
         # Switch gateway after embedding already set — must raise on write.
         with self.assertRaises(ValidationError):
             config.write({'openai_gateway': 'deepseek'})
+
+    def test_config_accepts_openrouter_full_capabilities(self):
+        config = self.env['ci.ai.provider.config'].get_solo()
+        config.write({
+            'openai_enabled': True,
+            'openai_api_key': 'sk-or',
+            'openai_gateway': 'openrouter',
+            'openai_model': 'openai/gpt-4o-mini',
+            'chat_provider': 'openai',
+            'embedding_provider': 'openai',
+            'stt_provider': 'openai',
+            'image_provider': 'openai',
+        })
+        self.assertEqual(config.openai_gateway, 'openrouter')
+        self.assertEqual(config.embedding_provider, 'openai')
+        self.assertEqual(config.stt_provider, 'openai')
+        self.assertEqual(config.image_provider, 'openai')
+
+    def test_router_openrouter_chat_url(self):
+        config = self.env['ci.ai.provider.config'].get_solo()
+        config.write({
+            'openai_enabled': True,
+            'openai_api_key': 'sk-or',
+            'openai_gateway': 'openrouter',
+            'openai_model': 'openai/gpt-4o-mini',
+            'chat_provider': 'openai',
+            'embedding_provider': 'iap',
+            'stt_provider': 'iap',
+            'image_provider': 'iap',
+        })
+        provider = get_chat_provider(self.env)
+        self.assertIsInstance(provider, OpenAIChatProvider)
+        self.assertEqual(provider.gateway, 'openrouter')
+        self.assertEqual(provider.base_url, 'https://openrouter.ai/api')
+
+        def fake_http(provider_label, method, url, headers, body=None, timeout=120):
+            self.assertEqual(url, 'https://openrouter.ai/api/v1/chat/completions')
+            self.assertEqual(headers.get('HTTP-Referer'), 'https://www.odoo.com')
+            return {
+                'choices': [{
+                    'message': {'role': 'assistant', 'content': 'hello from openrouter'},
+                }],
+            }
+
+        with patch(
+            'odoo.addons.ci_ai.providers.openai_provider.http_json',
+            side_effect=fake_http,
+        ):
+            result = provider.complete(
+                messages=[{'role': 'user', 'content': [{'type': 'text', 'text': 'hi'}]}],
+                instructions='',
+            )
+        self.assertIn('hello from openrouter', result['result']['content'][0]['text'])

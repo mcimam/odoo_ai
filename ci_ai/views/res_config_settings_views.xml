@@ -23,10 +23,10 @@
                             </div>
                         </setting>
                         <setting string="Speech-to-text"
-                                 help="OpenAI: Whisper batch + gpt-live-transcribe realtime. Google: Gemini multimodal batch only.">
+                                 help="OpenAI/Azure: Whisper batch + realtime. OpenRouter: batch only. Google: Gemini batch only.">
                             <field name="ci_ai_stt_provider"/>
                             <div class="text-muted mt8" invisible="ci_ai_stt_provider != 'openai'">
-                                Batch uses the Whisper model below. Live voice uses the Realtime model (default gpt-live-transcribe).
+                                Batch uses the Whisper model below. Live voice uses the Realtime model (default gpt-live-transcribe) on OpenAI/Azure; OpenRouter is batch-only.
                             </div>
                             <div class="text-warning mt8" invisible="ci_ai_stt_provider != 'google'">
                                 Google supports batch transcription only. Live browser STT still needs OpenAI or Odoo AI (IAP).
@@ -67,7 +67,7 @@
                         </setting>
                         <setting id="ci_ai_openai_setting"
                                  string="OpenAI / Compatible"
-                                 help="OpenAI or an OpenAI-compatible gateway (DeepSeek, Groq, OpenRouter, Azure, Ollama). Chat works on all presets; embeddings / STT / image need OpenAI or Azure (Ollama: chat + embeddings).">
+                                 help="OpenAI or an OpenAI-compatible gateway (DeepSeek, Groq, OpenRouter, Azure, Ollama). Chat on all presets; embeddings / batch STT / image on OpenAI, Azure, OpenRouter (Ollama: chat + embeddings).">
                             <field name="ci_ai_openai_enabled"/>
                             <div class="content-group" invisible="not ci_ai_openai_enabled">
                                 <div class="row mt16">
@@ -105,8 +105,12 @@
                                              placeholder="https://….openai.azure.com"/>
                                 </div>
                                 <div class="text-muted mt8"
-                                     invisible="ci_ai_openai_gateway in ('openai', 'azure')">
-                                    This gateway supports Chat (and embeddings for Ollama). Keep Embeddings / STT / Image on Odoo AI (IAP), Google, or switch gateway to OpenAI / Azure.
+                                     invisible="ci_ai_openai_gateway in ('openai', 'azure', 'openrouter')">
+                                    This gateway supports Chat (and embeddings for Ollama). Keep Embeddings / STT / Image on Odoo AI (IAP), Google, or switch gateway to OpenAI / Azure / OpenRouter.
+                                </div>
+                                <div class="text-warning mt8"
+                                     invisible="ci_ai_openai_gateway != 'openrouter'">
+                                    OpenRouter supports embeddings, batch STT, and image generation. Live browser STT still needs OpenAI, Azure, or Odoo AI (IAP). Bare model ids are prefixed with openai/ automatically.
                                 </div>
                             </div>
                         </setting>

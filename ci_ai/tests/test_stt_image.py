@@ -3,7 +3,7 @@
 import base64
 from unittest.mock import patch
 
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import tagged
 
 from odoo.addons.ci_ai.providers.google_provider import (
@@ -35,6 +35,7 @@ class TestCiAiSttAndImage(CiAiTransactionCase):
             'image_provider': 'iap',
             'openai_enabled': False,
             'openai_api_key': False,
+            'openai_gateway': 'openai',
             'openai_stt_model': 'whisper-1',
             'openai_realtime_stt_model': 'gpt-live-transcribe',
             'openai_image_model': 'dall-e-3',
@@ -355,3 +356,111 @@ class TestCiAiSttAndImage(CiAiTransactionCase):
         self.assertEqual(config.image_provider, 'google')
         self.assertEqual(config.google_stt_model, 'gemini-2.5-flash')
         self.assertEqual(config.google_image_model, 'gemini-2.5-flash-image')
+
+    def test_openrouter_transcribe_text_uses_json_input_audio(self):
+        provider = OpenAITranscriptionProvider(
+            api_key='sk-or',
+            model='whisper-1',
+            gateway='openrouter',
+            base_url='https://openrouter.ai/api',
+        )
+        audio_b64 = base64.b64encode(b'fake-audio').decode()
+
+        def fake_http(provider_label, method, url, headers, body=None, timeout=120):
+            self.assertEqual(url, 'https://openrouter.ai/api/v1/audio/transcriptions')
+            self.assertEqual(body['model'], 'openai/whisper-1')
+            self.assertEqual(body['response_format'], 'json')
+            self.assertEqual(body['input_audio']['data'], audio_b64)
+            self.assertEqual(body['input_audio']['format'], 'mp3')
+            self.assertEqual(headers.get('HTTP-Referer'), 'https://www.odoo.com')
+            return {'text': 'hello from openrouter'}
+
+        with patch(
+            'odoo.addons.ci_ai.providers.openai_provider.http_json',
+            side_effect=fake_http,
+        ):
+            result = provider.transcribe(audio_b64, response_format='text')
+        self.assertEqual(result['text'], 'hello from openrouter')
+
+    def test_openrouter_transcribe_vtt_from_verbose_json(self):
+        provider = OpenAITranscriptionProvider(
+            api_key='sk-or',
+            model='whisper-1',
+            gateway='openrouter',
+            base_url='https://openrouter.ai/api',
+        )
+        audio_b64 = base64.b64encode(b'fake-audio').decode()
+
+        def fake_http(provider_label, method, url, headers, body=None, timeout=120):
+            self.assertEqual(body['response_format'], 'verbose_json')
+            return {
+                'text': 'Hello there. Hi.',
+                'segments': [
+                    {'start': 0.0, 'end': 1.2, 'text': 'Hello there.'},
+                    {'start': 1.5, 'end': 3.0, 'text': 'Hi.'},
+                ],
+            }
+
+        with patch(
+            'odoo.addons.ci_ai.providers.openai_provider.http_json',
+            side_effect=fake_http,
+        ):
+            result = provider.transcribe(audio_b64, response_format='vtt')
+        self.assertIn('WEBVTT', result['text'])
+        self.assertIn('Hello there.', result['text'])
+        self.assertIn('00:00:00.000 --> 00:00:01.200', result['text'])
+
+    def test_openrouter_create_realtime_session_blocked(self):
+        provider = OpenAITranscriptionProvider(
+            api_key='sk-or',
+            gateway='openrouter',
+            base_url='https://openrouter.ai/api',
+        )
+        with self.assertRaisesRegex(UserError, 'batch transcription only'):
+            provider.create_realtime_session(language='en')
+
+    def test_get_session_token_openrouter_blocked(self):
+        self.env['ci.ai.provider.config'].get_solo().write({
+            'stt_provider': 'openai',
+            'openai_enabled': True,
+            'openai_api_key': 'sk-or',
+            'openai_gateway': 'openrouter',
+        })
+        from odoo.addons.ci_ai.controllers.ai import AIController
+
+        controller = AIController()
+        with patch('odoo.addons.ci_ai.controllers.ai.request') as mock_request:
+            mock_request.env = self.env
+            result = controller.get_session_token('en', 'prompt')
+        self.assertEqual(result['status'], 'error')
+        self.assertIn('OpenRouter', result['message'])
+        self.assertIn('batch transcription only', result['message'])
+
+    def test_openrouter_image_generate(self):
+        provider = OpenAIImageProvider(
+            api_key='sk-or',
+            model='dall-e-3',
+            gateway='openrouter',
+            base_url='https://openrouter.ai/api',
+        )
+        png_b64 = base64.b64encode(b'fakepng').decode()
+
+        def fake_http(provider_label, method, url, headers, body=None, timeout=120):
+            self.assertEqual(url, 'https://openrouter.ai/api/v1/images')
+            self.assertEqual(body['model'], 'openai/dall-e-3')
+            self.assertEqual(body['aspect_ratio'], '16:9')
+            self.assertEqual(body['output_format'], 'png')
+            self.assertNotIn('response_format', body)
+            self.assertEqual(headers.get('HTTP-Referer'), 'https://www.odoo.com')
+            return {
+                'data': [{'b64_json': png_b64, 'media_type': 'image/png'}],
+            }
+
+        with patch(
+            'odoo.addons.ci_ai.providers.openai_provider.http_json',
+            side_effect=fake_http,
+        ):
+            parts = provider.generate('a cat', aspect_ratio='16:9')
+        self.assertEqual(parts[0]['type'], 'inline_data')
+        self.assertEqual(parts[0]['data'], png_b64)
+        self.assertEqual(parts[0]['mimetype'], 'image/png')
