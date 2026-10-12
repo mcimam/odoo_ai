@@ -1,11 +1,17 @@
-# CI AI Providers (`ci_ai`)
+# Odoo AI: bring your own provider (`ci_ai`)
 
-Route Odoo Enterprise AI capabilities through Odoo IAP, Anthropic, OpenAI-compatible gateways, or Google Gemini.
+Use Odoo AI but with your own provider — Anthropic, OpenAI-compatible, or Google Gemini backends, same Enterprise agents UI.
+
+## Branding
+
+- **Display name:** ``Odoo AI: bring your own provider``
+- **Icon:** Chip + ``AI`` artwork with CI monogram badge (see ``static/description/icon_hi.png``).
+- **CI watermark:** Suite modules should keep a consistent CI mark on Apps icons (badge placement as in the current artwork).
 
 ## Install
 
 1. Add this folder to the Odoo addons path (alongside Enterprise `ai_agentic`).
-2. Update apps list and install **CI AI Providers**.
+2. Update apps list and install **Odoo AI: bring your own provider**.
 3. Open **Settings → AI**.
 
 ## Configuration

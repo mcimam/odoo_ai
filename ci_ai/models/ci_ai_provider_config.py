@@ -32,7 +32,7 @@ CAPABILITY_PROVIDERS = [
 
 class CiAiProviderConfig(models.Model):
     _name = 'ci.ai.provider.config'
-    _description = 'CI AI Provider Configuration'
+    _description = 'Odoo AI BYO Provider Configuration'
     _rec_name = 'name'
 
     name = fields.Char(default='AI Providers', required=True, translate=True)

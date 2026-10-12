@@ -9,7 +9,7 @@ Available addons
 ----------------
 addon | version | maintainers | summary
 --- | --- | --- | ---
-[ci_ai](ci_ai/) | 20.0.1.12.0 | [![mcimam](https://github.com/mcimam.png?size=40)](https://github.com/mcimam) | Route Odoo AI to IAP, Anthropic, OpenAI-compatible gateways, or Google
+[ci_ai](ci_ai/) | 20.0.1.12.0 | [![mcimam](https://github.com/mcimam.png?size=40)](https://github.com/mcimam) | Use Odoo AI but with your own provider
 
 [//]: # (end addons)
 

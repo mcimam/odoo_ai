@@ -181,7 +181,7 @@ def _openai_auth_headers(api_key: str, base_url: str) -> dict[str, str]:
     host = (base_url or '').lower()
     if 'openrouter.ai' in host:
         headers.setdefault('HTTP-Referer', 'https://www.odoo.com')
-        headers.setdefault('X-Title', 'Odoo CI AI')
+        headers.setdefault('X-Title', 'Odoo AI: bring your own provider')
     return headers
 
 

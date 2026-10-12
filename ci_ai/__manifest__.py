@@ -1,11 +1,13 @@
-# Part of ci_ai. Custom AI providers for Odoo Enterprise AI.
+# Part of ci_ai. Bring-your-own AI backends for Odoo Enterprise AI.
 {
-    'name': 'CI AI Providers',
+    'name': 'Odoo AI: bring your own provider',
     'category': 'Productivity',
     'version': '20.0.1.12.0',
-    'summary': 'Route Odoo AI to IAP, Anthropic, OpenAI-compatible gateways, or Google',
+    'summary': 'Use Odoo AI but with your own provider',
     'description': """
-Configure per-capability AI providers under Settings > AI.
+Odoo AI: bring your own provider — use Odoo AI but with your own Anthropic, OpenAI, or Gemini keys.
+
+Configure per-capability providers under Settings > AI.
 
 Chat: Odoo AI (IAP), Anthropic, OpenAI / Compatible, Google Gemini.
 Embeddings / RAG: IAP, OpenAI, Azure, OpenRouter, Ollama, Google (1536-dim).
@@ -48,6 +50,7 @@ v1.12: OpenRouter embeddings, batch STT, and image generation (no realtime STT).
     'author': 'CI',
     'license': 'LGPL-3',
     'images': [
+        'static/description/banner.png',
         'static/description/main_screenshot.png',
     ],
     'installable': True,
