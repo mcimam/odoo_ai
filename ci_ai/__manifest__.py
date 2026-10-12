@@ -42,6 +42,9 @@ Chat: IAP, Anthropic, OpenAI/compatible, Google. Embeddings / STT / image: IAP, 
     },
     'author': 'CI',
     'license': 'LGPL-3',
+    'images': [
+        'static/description/main_screenshot.png',
+    ],
     'installable': True,
     'application': False,
 }
